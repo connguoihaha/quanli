@@ -248,9 +248,13 @@ function renderList(listData) {
         const handleTouchStart = (e) => {
             startX = e.touches[0].clientX;
             isDragging = true;
+            // Remove transition for instant drag response (feels lighter)
+            cardFront.style.transition = 'none';
+
             // Close other open cards
             if (activeSwipeCard && activeSwipeCard !== cardFront) {
                 activeSwipeCard.style.transform = `translateX(0)`;
+                activeSwipeCard.style.transition = 'transform 0.2s ease-out';
                 activeSwipeCard = null;
             }
         };
@@ -271,13 +275,16 @@ function renderList(listData) {
             if (!isDragging) return;
             isDragging = false;
             
+            // Restore transition for smooth snap
+            cardFront.style.transition = 'transform 0.2s ease-out';
+            
             // Extract current transform value
             const style = window.getComputedStyle(cardFront);
             const matrix = new WebKitCSSMatrix(style.transform);
             const currentX = matrix.m41;
 
-            // Threshold to snap open (e.g. -50px)
-            if (currentX < -50) {
+            // Threshold to snap open (very easy: -20px)
+            if (currentX < -20) {
                 cardFront.style.transform = `translateX(-140px)`;
                 activeSwipeCard = cardFront;
                 if (e.cancelable) e.preventDefault(); // Prevent click from firing
