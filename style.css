@@ -366,6 +366,11 @@ body {
     margin-bottom: 8px;
 }
 
+.form-group > label {
+    display: block;
+    margin-bottom: 8px;
+}
+
 .form-group label {
     font-size: 14px;
     font-weight: 500;
@@ -557,6 +562,60 @@ body {
 
 .delete-confirm-btn {
     background-color: var(--error-color);
+}
+
+/* Update Popup */
+.update-popup {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    background-color: var(--text-primary);
+    color: white;
+    padding: 16px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.update-popup.active {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.update-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+}
+
+.update-content i {
+    color: var(--primary-color); /* Light blue accent */
+    font-size: 20px;
+}
+
+#updateBtn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
+}
+
+#updateBtn:active {
+    transform: scale(0.9);
+    background-color: var(--primary-hover);
 }
 
 /* Utilities */

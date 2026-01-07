@@ -68,16 +68,57 @@ const actionDeleteBtn = document.getElementById('actionDeleteBtn');
 const actionCancelBtn = document.getElementById('actionCancelBtn');
 let selectedCustomerId = null; // Used for action sheet context
 
-// Register Service Worker for PWA
+// Update Notification Logic
+const updatePopup = document.getElementById('updatePopup');
+const updateBtn = document.getElementById('updateBtn');
+let newWorker;
+
+function showUpdatePopup() {
+    if(updatePopup) updatePopup.classList.add('active');
+}
+
+if (updateBtn) {
+    updateBtn.addEventListener('click', () => {
+        if (newWorker) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+        }
+        // Fallback if SW magic fails
+        setTimeout(() => window.location.reload(), 500); 
+    });
+}
+
+// Register Service Worker with Update Logic
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(registration => {
-                console.log('SW registered: ', registration);
-            })
-            .catch(registrationError => {
-                console.log('SW registration failed: ', registrationError);
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('SW registered');
+
+            // 1. SW is waiting (Update downloaded but not active)
+            if (reg.waiting) {
+                newWorker = reg.waiting;
+                showUpdatePopup();
+                return;
+            }
+
+            // 2. SW is installing (New update found)
+            reg.addEventListener('updatefound', () => {
+                newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // Has network.state changed?
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdatePopup();
+                    }
+                });
             });
+        });
+
+        // 3. Reload when new SW takes control
+        let refreshing;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            window.location.reload();
+            refreshing = true;
+        });
     });
 }
 
@@ -129,6 +170,14 @@ function showToast(message) {
 // -----------------------------------------------------
 // Track currently open swipe card to close others
 let activeSwipeCard = null;
+
+// Close swipe when clicking anywhere outside of specific action buttons
+document.addEventListener('click', (e) => {
+    if (activeSwipeCard && !e.target.closest('.swipe-btn')) {
+        activeSwipeCard.style.transform = `translateX(0)`;
+        activeSwipeCard = null;
+    }
+});
 
 function renderList(listData) {
     customerListEl.innerHTML = '';
@@ -184,7 +233,6 @@ function renderList(listData) {
 
         // 1. COPY CCCD Handler
         cccdEl.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent swipe triggers if any
             navigator.clipboard.writeText(customer.cccd).then(() => {
                 showToast("Đã sao chép CCCD");
             }).catch(err => {
@@ -232,6 +280,7 @@ function renderList(listData) {
             if (currentX < -50) {
                 cardFront.style.transform = `translateX(-140px)`;
                 activeSwipeCard = cardFront;
+                if (e.cancelable) e.preventDefault(); // Prevent click from firing
             } else {
                 cardFront.style.transform = `translateX(0)`;
                 if (activeSwipeCard === cardFront) activeSwipeCard = null;
@@ -242,14 +291,6 @@ function renderList(listData) {
         cardFront.addEventListener('touchmove', handleTouchMove, {passive: true});
         cardFront.addEventListener('touchend', handleTouchEnd);
         
-        // Also support click to close if open
-        cardFront.addEventListener('click', (e) => {
-            // If dragging happened, this click might fire, so checking translation is safe
-            if (activeSwipeCard === cardFront && !e.target.closest('.card-cccd')) {
-                 cardFront.style.transform = `translateX(0)`;
-                 activeSwipeCard = null;
-            }
-        });
 
 
         // 3. ACTION BUTTON HANDLERS
