@@ -106,24 +106,61 @@ body {
     scroll-behavior: smooth;
 }
 
-/* Customer Card */
+/* Customer Card - Swipe Layout */
 .customer-card {
-    background-color: var(--card-bg);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(255, 255, 255, 0.5);
     position: relative;
-    overflow: hidden;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    background-color: transparent; /* Wrapper is transparent */
+    overflow: hidden; /* Hide actions initially */
+    box-shadow: var(--shadow);
+    /* Remove default padding/bg as it moves to card-front */
+    padding: 0; 
 }
 
-/* Decorative subtle usage stripe */
-.customer-card::before {
+.card-actions-swipe {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 140px; /* 70px per button */
+    display: flex;
+    z-index: 1;
+}
+
+.swipe-btn {
+    flex: 1;
+    border: none;
+    color: white;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.swipe-edit {
+    background-color: #64748B;
+}
+
+.swipe-delete {
+    background-color: var(--error-color);
+}
+
+.card-front {
+    position: relative;
+    background-color: var(--card-bg);
+    padding: 20px;
+    z-index: 2;
+    transition: transform 0.2s ease-out; /* Smooth slide */
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border-radius: 20px; /* Match parent */
+}
+
+/* Decorative stripe on card-front */
+.card-front::before {
     content: '';
     position: absolute;
     left: 0;
@@ -134,15 +171,13 @@ body {
     opacity: 0.8;
 }
 
-.customer-card:active {
-    transform: scale(0.98);
-}
-
+/* Card Content Layout */
 .card-content {
     display: flex;
     align-items: center;
     flex: 1;
     gap: 16px;
+    overflow: hidden; /* Prevent text overflow */
 }
 
 .card-icon {
@@ -156,7 +191,6 @@ body {
     justify-content: center;
     font-size: 24px;
     flex-shrink: 0;
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.8);
 }
 
 .card-info {
@@ -164,17 +198,21 @@ body {
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    min-width: 0; /* Enable truncation */
 }
 
 .card-name {
-    font-size: 20px; /* Bigger name */
+    font-size: 20px;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .card-cccd {
-    font-size: 18px; /* Bigger numbers */
+    font-size: 18px;
     color: var(--text-secondary);
     display: flex;
     align-items: center;
@@ -183,15 +221,49 @@ body {
     font-weight: 600;
     letter-spacing: 0.5px;
     background-color: #F8FAFC;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 8px;
     width: fit-content;
+    cursor: copy; /* Indicate copyable */
+    transition: background-color 0.2s;
+    user-select: none;
+}
+
+.card-cccd:active {
+    background-color: #E2E8F0;
+    transform: scale(0.98);
 }
 
 .card-cccd i {
     font-size: 14px;
     color: var(--primary-color);
     opacity: 0.8;
+}
+
+/* Toast Container */
+.toast-container {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.toast {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 /* FAB */

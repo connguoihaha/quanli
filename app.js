@@ -105,8 +105,34 @@ function initDataListener() {
 // -----------------------------------------------------
 // RENDER FUNCTION with LONG PRESS
 // -----------------------------------------------------
+// Toast Logic
+const toastContainer = document.getElementById('toastContainer');
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// -----------------------------------------------------
+// RENDER FUNCTION with SWIPE & COPY
+// -----------------------------------------------------
+// Track currently open swipe card to close others
+let activeSwipeCard = null;
+
 function renderList(listData) {
     customerListEl.innerHTML = '';
+    activeSwipeCard = null; // Reset
 
     if (listData.length === 0) {
         customerListEl.innerHTML = `
@@ -119,59 +145,136 @@ function renderList(listData) {
     }
 
     listData.forEach(customer => {
-        const card = document.createElement('div');
-        card.className = 'customer-card';
-        card.setAttribute('data-id', customer.id);
-        card.innerHTML = `
-            <div class="card-content">
-                <div class="card-icon">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div class="card-info">
-                    <span class="card-name">${escapeHtml(customer.name)}</span>
-                    <span class="card-cccd">
-                        <i class="fa-regular fa-id-card"></i> ${escapeHtml(customer.cccd)}
-                    </span>
+        const cardWrapper = document.createElement('div');
+        cardWrapper.className = 'customer-card';
+        cardWrapper.setAttribute('data-id', customer.id);
+
+        cardWrapper.innerHTML = `
+            <div class="card-actions-swipe">
+                <button class="swipe-btn swipe-edit" id="btn-edit-${customer.id}">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="swipe-btn swipe-delete" id="btn-delete-${customer.id}">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+            
+            <div class="card-front" id="card-front-${customer.id}">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="card-info">
+                        <span class="card-name">${escapeHtml(customer.name)}</span>
+                        <span class="card-cccd" id="cccd-copy-${customer.id}">
+                            <i class="fa-regular fa-copy"></i> ${escapeHtml(customer.cccd)}
+                        </span>
+                    </div>
                 </div>
             </div>
         `;
-        
-        // --- LONG PRESS LOGIC ---
-        let pressTimer;
-        let isLongPress = false;
 
-        const startPress = (e) => {
-            if (e.type === 'click' && e.button !== 0) return; // Only left click or touch
-            isLongPress = false;
-            pressTimer = setTimeout(() => {
-                isLongPress = true;
-                openActionSheet(customer.id);
-                // Vibrate if supported (Android mostly)
-                if (navigator.vibrate) navigator.vibrate(50); 
-            }, 600); // 600ms long press
-        };
+        customerListEl.appendChild(cardWrapper);
 
-        const cancelPress = () => {
-             clearTimeout(pressTimer);
-        };
+        // --- HANDLERS ---
+        const cardFront = cardWrapper.querySelector('.card-front');
+        const cccdEl = cardWrapper.querySelector(`#cccd-copy-${customer.id}`);
+        const editBtn = cardWrapper.querySelector(`#btn-edit-${customer.id}`);
+        const deleteBtn = cardWrapper.querySelector(`#btn-delete-${customer.id}`);
 
-        // Touch events (Mobile)
-        card.addEventListener('touchstart', startPress, {passive: true});
-        card.addEventListener('touchend', cancelPress);
-        card.addEventListener('touchmove', cancelPress);
-
-        // Mouse events (Desktop)
-        card.addEventListener('mousedown', startPress);
-        card.addEventListener('mouseup', cancelPress);
-        card.addEventListener('mouseleave', cancelPress);
-
-        // Right click context menu (Desktop alternative)
-        card.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            openActionSheet(customer.id);
+        // 1. COPY CCCD Handler
+        cccdEl.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent swipe triggers if any
+            navigator.clipboard.writeText(customer.cccd).then(() => {
+                showToast("Đã sao chép CCCD");
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
         });
 
-        customerListEl.appendChild(card);
+        // 2. SWIPE LOGIC
+        let startX = 0;
+        let currentTranslate = 0;
+        let isDragging = false;
+        
+        const handleTouchStart = (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+            // Close other open cards
+            if (activeSwipeCard && activeSwipeCard !== cardFront) {
+                activeSwipeCard.style.transform = `translateX(0)`;
+                activeSwipeCard = null;
+            }
+        };
+
+        const handleTouchMove = (e) => {
+            if (!isDragging) return;
+            const currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+
+            // Only allow swiping left (negative diff)
+            // Limit pull to -140px (width of actions)
+            if (diff < 0 && diff > -160) {
+                 cardFront.style.transform = `translateX(${diff}px)`;
+            }
+        };
+
+        const handleTouchEnd = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // Extract current transform value
+            const style = window.getComputedStyle(cardFront);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            const currentX = matrix.m41;
+
+            // Threshold to snap open (e.g. -50px)
+            if (currentX < -50) {
+                cardFront.style.transform = `translateX(-140px)`;
+                activeSwipeCard = cardFront;
+            } else {
+                cardFront.style.transform = `translateX(0)`;
+                if (activeSwipeCard === cardFront) activeSwipeCard = null;
+            }
+        };
+
+        cardFront.addEventListener('touchstart', handleTouchStart, {passive: true});
+        cardFront.addEventListener('touchmove', handleTouchMove, {passive: true});
+        cardFront.addEventListener('touchend', handleTouchEnd);
+        
+        // Also support click to close if open
+        cardFront.addEventListener('click', (e) => {
+            // If dragging happened, this click might fire, so checking translation is safe
+            if (activeSwipeCard === cardFront && !e.target.closest('.card-cccd')) {
+                 cardFront.style.transform = `translateX(0)`;
+                 activeSwipeCard = null;
+            }
+        });
+
+
+        // 3. ACTION BUTTON HANDLERS
+        editBtn.addEventListener('click', () => {
+             // Close swipe
+             cardFront.style.transform = `translateX(0)`;
+             activeSwipeCard = null;
+             openModal(true, customer);
+        });
+
+        deleteBtn.addEventListener('click', () => {
+            // Close swipe
+            cardFront.style.transform = `translateX(0)`;
+            activeSwipeCard = null;
+            
+            // Trigger Delete Flow
+            showConfirmDialog("Bạn có chắc chắn muốn xóa khách hàng này không?", async () => {
+                try {
+                    await deleteDoc(doc(db, "customers", customer.id));
+                } catch (error) {
+                    console.error(error);
+                    alert("Lỗi: " + error.message);
+                }
+            });
+        });
     });
 }
 
@@ -307,6 +410,16 @@ addForm.addEventListener('submit', async (e) => {
 
     if (cccd.length !== 12) {
         cccdError.textContent = 'CCCD phải có đúng 12 số';
+        return;
+    }
+
+    // CHECK DUPLICATE CCCD
+    const isDuplicate = customers.some(c => c.cccd === cccd && c.id !== editingId);
+    if (isDuplicate) {
+        cccdError.textContent = 'Số CCCD này đã tồn tại!';
+        // Shake validation
+        cccdInput.classList.add('shake');
+        setTimeout(() => cccdInput.classList.remove('shake'), 500);
         return;
     }
 
