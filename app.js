@@ -242,19 +242,30 @@ function renderList(listData) {
 
         // 2. SWIPE LOGIC
         let startX = 0;
-        let currentTranslate = 0;
+        let startPos = 0;
         let isDragging = false;
         
         const handleTouchStart = (e) => {
             startX = e.touches[0].clientX;
             isDragging = true;
-            // Remove transition for instant drag response (feels lighter)
+            
+            // Get current position
+            const style = window.getComputedStyle(cardFront);
+            if (style.transform === 'none') {
+                startPos = 0;
+            } else {
+                const matrix = new WebKitCSSMatrix(style.transform);
+                startPos = matrix.m41;
+            }
+
+            // Remove transition for instant drag
             cardFront.style.transition = 'none';
 
-            // Close other open cards
+            // Close other open cards (if any)
             if (activeSwipeCard && activeSwipeCard !== cardFront) {
-                activeSwipeCard.style.transform = `translateX(0)`;
+                // Animate other card closing
                 activeSwipeCard.style.transition = 'transform 0.2s ease-out';
+                activeSwipeCard.style.transform = `translateX(0)`;
                 activeSwipeCard = null;
             }
         };
@@ -263,31 +274,44 @@ function renderList(listData) {
             if (!isDragging) return;
             const currentX = e.touches[0].clientX;
             const diff = currentX - startX;
+            
+            // Calculate new position based on start position
+            let newPos = startPos + diff;
 
-            // Only allow swiping left (negative diff)
-            // Limit pull to -140px (width of actions)
-            if (diff < 0 && diff > -160) {
-                 cardFront.style.transform = `translateX(${diff}px)`;
-            }
+            // Constrain movement: max right 0 (closed), max left -160 (elastic limit)
+            if (newPos > 0) newPos = 0;
+            if (newPos < -160) newPos = -160;
+
+            cardFront.style.transform = `translateX(${newPos}px)`;
         };
 
         const handleTouchEnd = (e) => {
             if (!isDragging) return;
             isDragging = false;
             
-            // Restore transition for smooth snap
+            // Restore smooth transition
             cardFront.style.transition = 'transform 0.2s ease-out';
             
-            // Extract current transform value
-            const style = window.getComputedStyle(cardFront);
-            const matrix = new WebKitCSSMatrix(style.transform);
-            const currentX = matrix.m41;
+            const currentX = e.changedTouches[0].clientX;
+            const dist = currentX - startX; // negative=left, positive=right
+            
+            // Determine initial state based on startPos
+            // (Assuming -140 is open, 0 is closed)
+            const isInitiallyOpen = Math.abs(startPos) > 70;
+            
+            let shouldBeOpen = isInitiallyOpen;
 
-            // Threshold to snap open (very easy: -20px)
-            if (currentX < -20) {
+            if (!isInitiallyOpen) {
+                // CLOSED -> OPEN if pulled left > 30px
+                if (dist < -30) shouldBeOpen = true;
+            } else {
+                // OPEN -> CLOSE if pulled right > 30px
+                if (dist > 30) shouldBeOpen = false;
+            }
+
+            if (shouldBeOpen) {
                 cardFront.style.transform = `translateX(-140px)`;
                 activeSwipeCard = cardFront;
-                if (e.cancelable) e.preventDefault(); // Prevent click from firing
             } else {
                 cardFront.style.transform = `translateX(0)`;
                 if (activeSwipeCard === cardFront) activeSwipeCard = null;
