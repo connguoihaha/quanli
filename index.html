@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quản Lý Khách Hàng</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0EA5E9">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Khách Hàng</h1>
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Tìm tên hoặc số CCCD..." autocomplete="off">
+            </div>
+        </header>
+
+        <!-- List Content -->
+        <main class="customer-list" id="customerList">
+            <!-- Loading State -->
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="addBtn">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Modal (Popup) -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Thêm Khách Hàng</h2>
+                <button class="close-btn" id="closeBtn"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <form id="addForm">
+                <div class="form-group">
+                    <label for="nameInput">Họ và tên</label>
+                    <input type="text" id="nameInput" placeholder="Nhập họ tên" required>
+                </div>
+                
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="cccdInput">Số CCCD</label>
+                        <span class="char-count" id="cccdCount">Còn 0 ký tự</span>
+                    </div>
+                    <input type="tel" id="cccdInput" placeholder="Nhập 12 số CCCD" maxlength="12" pattern="[0-9]*" inputmode="numeric" required>
+                    <div class="error-msg" id="cccdError"></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="cancelBtn">Hủy</button>
+                    <button type="submit" class="btn-submit">
+                        <span class="btn-text">Lưu</span>
+                        <div class="btn-spinner hidden"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModalOverlay" style="z-index: 300;">
+        <div class="modal confirm-modal">
+            <div class="modal-header">
+                <h3>Xác nhận</h3>
+            </div>
+            <div class="confirm-content">
+                <p id="confirmMessage">Bạn có chắc chắn muốn xóa khách hàng này không?</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="confirmCancelBtn">Hủy</button>
+                <button type="button" class="btn-submit delete-confirm-btn" id="confirmOkBtn">
+                    <span class="btn-text">Xóa</span>
+                    <div class="btn-spinner hidden"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Sheet (Edit/Delete) -->
+    <div class="action-sheet-overlay" id="actionSheetOverlay">
+        <div class="action-sheet">
+            <div class="action-header">
+                <h3>Tùy chọn</h3>
+            </div>
+            <button class="action-btn edit-btn" id="actionEditBtn">
+                <i class="fa-solid fa-pen"></i> Chỉnh sửa
+            </button>
+            <button class="action-btn delete-btn" id="actionDeleteBtn">
+                <i class="fa-solid fa-trash"></i> Xóa khách hàng
+            </button>
+            <button class="action-btn cancel-btn" id="actionCancelBtn">Hủy</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
