@@ -618,7 +618,82 @@ body {
     background-color: var(--primary-hover);
 }
 
-/* Utilities */
+/* Install Banner */
+.install-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 20px;
+    right: 20px;
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+    z-index: 998; /* Below update popup */
+    transform: translateY(150%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--border-color);
+}
+
+.install-banner.show {
+    transform: translateY(0);
+}
+
+.install-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.install-icon img {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+}
+
+.install-text {
+    display: flex;
+    flex-direction: column; /* gap handles spacing better than margin */
+    gap: 2px;
+}
+
+.install-title {
+    font-weight: 700;
+    font-size: 17px; /* Larger title */
+    color: var(--text-primary);
+}
+
+.install-desc {
+    font-size: 14px; /* Larger desc */
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+#installBtn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px; /* Bigger button */
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25); /* Add glow */
+}
+
+#closeInstallBtn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 22px; /* Bigger close icon */
+    padding: 8px;
+    cursor: pointer;
+    margin-left: -8px; /* Adjust visual balance */
+}
 
 @keyframes spin {
     to { transform: rotate(360deg); }

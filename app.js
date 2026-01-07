@@ -68,6 +68,52 @@ const actionDeleteBtn = document.getElementById('actionDeleteBtn');
 const actionCancelBtn = document.getElementById('actionCancelBtn');
 let selectedCustomerId = null; // Used for action sheet context
 
+// Install PWA Logic
+let deferredPrompt;
+const installBanner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+const closeInstallBtn = document.getElementById('closeInstallBtn');
+
+// Check if already in standalone mode
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+if (!isStandalone) {
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        deferredPrompt = e;
+        // Update UI to notify the user they can add to home screen
+        showInstallBanner();
+    });
+}
+
+function showInstallBanner() {
+    if (installBanner) installBanner.classList.add('show');
+}
+
+function hideInstallBanner() {
+    if (installBanner) installBanner.classList.remove('show');
+}
+
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        hideInstallBanner();
+        // Show the install prompt
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+        }
+    });
+}
+
+if (closeInstallBtn) {
+    closeInstallBtn.addEventListener('click', hideInstallBanner);
+}
+
 // Update Notification Logic
 const updatePopup = document.getElementById('updatePopup');
 const updateBtn = document.getElementById('updateBtn');
