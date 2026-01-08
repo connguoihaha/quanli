@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qlkh-v3.9.2';
+const CACHE_NAME = 'qlkh-v4.1';
 const urlsToCache = [
   './',
   './index.html',

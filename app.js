@@ -46,9 +46,12 @@ try {
     enableIndexedDbPersistence(db)
         .catch((err) => {
             if (err.code == 'failed-precondition') {
+                // Multiple tabs open
                 console.log('Persistence failed: Multiple tabs open');
             } else if (err.code == 'unimplemented') {
-                console.log('Persistence is not available in this browser');
+                // Browser doesn't support
+                console.log('Persistence not supported');
+                showToast("Thiết bị này không hỗ trợ lưu offline");
             }
         });
 
@@ -57,12 +60,11 @@ try {
 }
 
 // Network Status Listeners
-// Network Status Listeners
 const networkStatusEl = document.getElementById('networkStatus');
 const syncNoteEl = document.getElementById('syncNote');
 
 function updateNetworkUI(isOnline) {
-    if (!networkStatusEl || !syncNoteEl) return; // Prevent crash if elements missing
+    if (!networkStatusEl || !syncNoteEl) return; 
 
     const statusIcon = networkStatusEl.querySelector('i');
     const statusText = networkStatusEl.querySelector('.status-text');
@@ -103,7 +105,7 @@ const searchInput = document.getElementById('searchInput');
 const customerListEl = document.getElementById('customerList');
 const addBtn = document.getElementById('addBtn');
 const modalOverlay = document.getElementById('modalOverlay');
-const modalTitle = document.querySelector('.modal-header h2'); // To change title Add/Edit
+const modalTitle = document.querySelector('.modal-header h2'); 
 const closeBtn = document.getElementById('closeBtn');
 const cancelBtn = document.getElementById('cancelBtn');
 const addForm = document.getElementById('addForm');
@@ -120,7 +122,7 @@ const actionSheetOverlay = document.getElementById('actionSheetOverlay');
 const actionEditBtn = document.getElementById('actionEditBtn');
 const actionDeleteBtn = document.getElementById('actionDeleteBtn');
 const actionCancelBtn = document.getElementById('actionCancelBtn');
-let selectedCustomerId = null; // Used for action sheet context
+let selectedCustomerId = null; 
 
 // Install PWA Logic
 let deferredPrompt;
@@ -133,11 +135,8 @@ const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
 
 if (!isStandalone) {
     window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
         e.preventDefault();
-        // Stash the event so it can be triggered later.
         deferredPrompt = e;
-        // Update UI to notify the user they can add to home screen
         showInstallBanner();
     });
 }
@@ -153,10 +152,8 @@ function hideInstallBanner() {
 if (installBtn) {
     installBtn.addEventListener('click', async () => {
         hideInstallBanner();
-        // Show the install prompt
         if (deferredPrompt) {
             deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
             const { outcome } = await deferredPrompt.userChoice;
             console.log(`User response to the install prompt: ${outcome}`);
             deferredPrompt = null;
@@ -182,7 +179,6 @@ if (updateBtn) {
         if (newWorker) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
         }
-        // Fallback if SW magic fails
         setTimeout(() => window.location.reload(), 500); 
     });
 }
@@ -193,18 +189,15 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').then(reg => {
             console.log('SW registered');
 
-            // 1. SW is waiting (Update downloaded but not active)
             if (reg.waiting) {
                 newWorker = reg.waiting;
                 showUpdatePopup();
                 return;
             }
 
-            // 2. SW is installing (New update found)
             reg.addEventListener('updatefound', () => {
                 newWorker = reg.installing;
                 newWorker.addEventListener('statechange', () => {
-                    // Has network.state changed?
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                         showUpdatePopup();
                     }
@@ -212,7 +205,6 @@ if ('serviceWorker' in navigator) {
             });
         });
 
-        // 3. Reload when new SW takes control
         let refreshing;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
@@ -244,7 +236,18 @@ function initDataListener() {
         renderList(customers);
     }, (error) => {
         console.error("Lỗi tải dữ liệu: ", error);
-        customerListEl.innerHTML = `<div class="empty-state">Lỗi kết nối hoặc chưa cấu hình Firebase.</div>`;
+        
+        // Don't wipe current list if it's just a transient network error
+        if (customers.length === 0) {
+             const isOffline = !navigator.onLine;
+             const msg = isOffline 
+                ? "Không thể tải dữ liệu offline (bộ nhớ cache rỗng)" 
+                : "Lỗi kết nối hoặc chưa cấu hình Firebase";
+                
+             customerListEl.innerHTML = `<div class="empty-state">${msg}</div>`;
+        } else {
+             showToast("Mất kết nối với máy chủ");
+        }
     });
 }
 
