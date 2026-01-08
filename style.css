@@ -775,3 +775,32 @@ body.offline-mode .search-bar input:focus {
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
 }
+
+/* Offline / Pending Logic */
+.card-front.pending-sync {
+    background-color: #FFF7ED; /* Light orange bg */
+    border: 1px dashed #FDBA74; /* Dashed orange border */
+}
+
+.pending-icon {
+    color: #F97316; /* Orange */
+    animation: spin 2s linear infinite;
+    font-size: 18px;
+    margin-left: 8px;
+}
+
+/* Offline Modal Styles */
+body.offline-mode .modal-header h2::after {
+    content: ' (Offline)';
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+body.offline-mode .btn-submit {
+    background-color: #F97316; /* Orange submit button for offline */
+}
+
+body.offline-mode .btn-text::after {
+    content: ' Offline';
+}

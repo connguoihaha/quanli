@@ -200,10 +200,15 @@ function initDataListener() {
     const q = query(collection(db, "customers"), orderBy("createdAt", "desc"));
     
     // Using onSnapshot for Realtime updates
-    onSnapshot(q, (querySnapshot) => {
+    onSnapshot(q, { includeMetadataChanges: true }, (querySnapshot) => {
         customers = [];
         querySnapshot.forEach((doc) => {
-            customers.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            customers.push({ 
+                id: doc.id, 
+                ...data,
+                isPending: doc.metadata.hasPendingWrites // Track sync status
+            });
         });
         renderList(customers);
     }, (error) => {
@@ -277,7 +282,7 @@ function renderList(listData) {
                 </button>
             </div>
             
-            <div class="card-front" id="card-front-${customer.id}">
+            <div class="card-front ${customer.isPending ? 'pending-sync' : ''}" id="card-front-${customer.id}">
                 <div class="card-content">
                     <div class="card-icon">
                         <i class="fa-solid fa-user"></i>
@@ -288,6 +293,7 @@ function renderList(listData) {
                             <i class="fa-regular fa-copy"></i> ${escapeHtml(customer.cccd)}
                         </span>
                     </div>
+                    ${customer.isPending ? `<div class="pending-icon" title="Đang chờ đồng bộ"><i class="fa-solid fa-rotate"></i></div>` : ''}
                 </div>
             </div>
         `;
@@ -624,31 +630,49 @@ addForm.addEventListener('submit', async (e) => {
     btnSpinner.classList.remove('hidden');
 
     try {
+        const isOffline = !navigator.onLine;
+        let promise;
+
         if (editingId) {
             // UPDATE EXISTING
             const customerRef = doc(db, "customers", editingId);
-            await updateDoc(customerRef, {
+            promise = updateDoc(customerRef, {
                 name: name,
                 cccd: cccd,
                 updatedAt: serverTimestamp()
             });
         } else {
             // ADD NEW
-            await addDoc(collection(db, "customers"), {
+            promise = addDoc(collection(db, "customers"), {
                 name: name,
                 cccd: cccd,
                 createdAt: serverTimestamp()
             });
         }
+
+        if (isOffline) {
+            // OFFLINE: Don't await, close immediately
+            showToast("Đã lưu (Offline). Sẽ tự đồng bộ khi có mạng.");
+            closeModal();
+            // Handle promise in background to catch potential local errors
+            promise.catch(e => console.error("Offline write error (unlikely):", e));
+        } else {
+            // ONLINE: Await confirmation
+            await promise;
+            closeModal();
+            showToast(editingId ? "Đã cập nhật thành công" : "Đã thêm thành công");
+        }
         
-        closeModal();
     } catch (error) {
         console.error("Error saving document: ", error);
         alert("Có lỗi xảy ra: " + error.message);
     } finally {
-        submitBtn.disabled = false;
-        btnText.classList.remove('hidden');
-        btnSpinner.classList.add('hidden');
+        // Reset UI if we awaited (if offline, modal is already closed so this is fine)
+        if (navigator.onLine) {
+            submitBtn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnSpinner.classList.add('hidden');
+        }
     }
 });
 
@@ -738,8 +762,17 @@ actionDeleteBtn.addEventListener('click', () => {
     setTimeout(() => {
         showConfirmDialog("Bạn có chắc chắn muốn xóa khách hàng này không? Hành động này không thể hoàn tác.", async () => {
             try {
-                // Use the captured idToDelete, not the global one which is now null
-                await deleteDoc(doc(db, "customers", idToDelete)); 
+                const isOffline = !navigator.onLine;
+                const promise = deleteDoc(doc(db, "customers", idToDelete));
+
+                if (isOffline) {
+                     showToast("Đã xóa (Offline). Sẽ đồng bộ sau.");
+                     // Don't await
+                     promise.catch(e => console.error(e));
+                } else {
+                    await promise;
+                    showToast("Đã xóa thành công");
+                }
             } catch (error) {
                 console.error("Error removing document: ", error);
                 alert("Không thể xóa: " + error.message);
