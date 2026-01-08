@@ -1,11 +1,14 @@
-const CACHE_NAME = 'qlkh-v4.1';
+const CACHE_NAME = 'qlkh-v4.2';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './app.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js',
+  'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
 ];
 
 self.addEventListener('install', (event) => {
