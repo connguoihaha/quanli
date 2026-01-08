@@ -57,15 +57,46 @@ try {
 }
 
 // Network Status Listeners
-window.addEventListener('online', () => {
-    showToast("Đã khôi phục kết nối Internet");
-    document.body.classList.remove('offline-mode');
-});
+// Network Status Listeners
+const networkStatusEl = document.getElementById('networkStatus');
+const syncNoteEl = document.getElementById('syncNote');
 
-window.addEventListener('offline', () => {
-    showToast("Bạn đang Offline. Dữ liệu sẽ tự đồng bộ sau.");
-    document.body.classList.add('offline-mode');
-});
+function updateNetworkUI(isOnline) {
+    if (!networkStatusEl || !syncNoteEl) return; // Prevent crash if elements missing
+
+    const statusIcon = networkStatusEl.querySelector('i');
+    const statusText = networkStatusEl.querySelector('.status-text');
+
+    if (isOnline) {
+        // Online State
+        document.body.classList.remove('offline-mode');
+        
+        networkStatusEl.className = 'network-status online';
+        if (statusIcon) statusIcon.className = 'fa-solid fa-wifi';
+        if (statusText) statusText.textContent = 'Online';
+        
+        syncNoteEl.classList.add('hidden');
+        showToast("Đã khôi phục kết nối Internet");
+    } else {
+        // Offline State
+        document.body.classList.add('offline-mode');
+        
+        networkStatusEl.className = 'network-status offline';
+        if (statusIcon) statusIcon.className = 'fa-solid fa-wifi-slash';
+        if (statusText) statusText.textContent = 'Không có mạng';
+        
+        syncNoteEl.classList.remove('hidden');
+        showToast("Bạn đang Offline");
+    }
+}
+
+window.addEventListener('online', () => updateNetworkUI(true));
+window.addEventListener('offline', () => updateNetworkUI(false));
+
+// Check initial status
+if (!navigator.onLine) {
+    updateNetworkUI(false);
+}
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -771,11 +802,6 @@ actionDeleteBtn.addEventListener('click', () => {
                 alert("Không thể xóa: " + error.message);
             });
             
-            // Note: closeConfirmDialog() is called automatically by the confirm modal logic 
-            // but we want to ensure the spinner doesn't get stuck if we were using it.
-            // Since we are inside the callback of showConfirmDialog, the parent logic handles the button state?
-            // Wait, looking at showConfirmDialog implementation in app.js lines ~519:
-            // It awaits the callback! We need to make the callback synchronous or instant.
         });
     }, 300); // Wait for action sheet to close
 });

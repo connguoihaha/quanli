@@ -52,29 +52,65 @@ body {
     transition: background-color 0.3s;
 }
 
-body.offline-mode .app-header {
-    background-color: #f1f5f9; /* Gray out header */
-}
-
-body.offline-mode .app-header h1 {
-    color: #64748b; /* Gray text */
-}
-
-body.offline-mode .search-icon {
-    color: #64748b;
-}
-
-body.offline-mode .search-bar input:focus {
-    border-color: #cbd5e1;
-    box-shadow: none;
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
 }
 
 .app-header h1 {
-    font-size: 28px;
+    font-size: 34px; /* Larger Title */
     font-weight: 800;
-    margin-bottom: 16px;
     color: var(--primary-color);
     letter-spacing: -0.5px;
+    margin-bottom: 0; 
+}
+
+/* Network Status Badge */
+.network-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px; /* Larger Badge */
+    border-radius: 24px;
+    font-size: 16px; /* Larger Text */
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.network-status.online {
+    background-color: #ECFDF5;
+    color: #10B981;
+}
+
+.network-status.offline {
+    background-color: #FFF7ED;
+    color: #F97316;
+}
+
+/* Sync Note Banner */
+.sync-note {
+    font-size: 15px; /* Larger Note */
+    color: #64748B;
+    background-color: #F1F5F9;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: fadeIn 0.3s;
+}
+
+.sync-note.hidden {
+    display: none;
+}
+
+/* SEARCH BAR Adjustments */
+.search-bar {
+    position: relative;
+    width: 100%;
 }
 
 /* Search Bar */

@@ -22,7 +22,19 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <h1>Khách Hàng</h1>
+            <div class="header-top">
+                <h1>Khách Hàng</h1>
+                <div id="networkStatus" class="network-status online">
+                    <i class="fa-solid fa-wifi"></i>
+                    <span class="status-text">Online</span>
+                </div>
+            </div>
+            
+            <!-- Connection Note (Visible only when offline) -->
+            <div id="syncNote" class="sync-note hidden">
+                <i class="fa-solid fa-circle-info"></i> Dữ liệu sẽ tự động đồng bộ khi có mạng.
+            </div>
+
             <div class="search-bar">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="searchInput" placeholder="Tìm tên hoặc số CCCD..." autocomplete="off">
