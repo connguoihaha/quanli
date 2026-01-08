@@ -11,7 +11,8 @@ import {
     onSnapshot, 
     query, 
     orderBy, 
-    serverTimestamp 
+    serverTimestamp,
+    enableIndexedDbPersistence 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ==========================================
@@ -40,9 +41,31 @@ let editingId = null; // Track which ID is being edited
 try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+
+    // ENABLE OFFLINE PERSISTENCE
+    enableIndexedDbPersistence(db)
+        .catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Persistence failed: Multiple tabs open');
+            } else if (err.code == 'unimplemented') {
+                console.log('Persistence is not available in this browser');
+            }
+        });
+
 } catch (e) {
     console.error("Lỗi khởi tạo Firebase. Hãy kiểm tra config.", e);
 }
+
+// Network Status Listeners
+window.addEventListener('online', () => {
+    showToast("Đã khôi phục kết nối Internet");
+    document.body.classList.remove('offline-mode');
+});
+
+window.addEventListener('offline', () => {
+    showToast("Bạn đang Offline. Dữ liệu sẽ tự đồng bộ sau.");
+    document.body.classList.add('offline-mode');
+});
 
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
@@ -198,7 +221,7 @@ function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
-    toastContainer.appendChild(toast);
+    toastContainer.appendChild(toast); 
     
     // Trigger animation
     requestAnimationFrame(() => {
@@ -408,24 +431,78 @@ function escapeHtml(text) {
 }
 
 // -----------------------------------------------------
-// SEARCH LOGIC
+// SEARCH LOGIC (Advanced)
 // -----------------------------------------------------
+function removeVietnameseTones(str) {
+    if (!str) return "";
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a"); 
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g,"e"); 
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g,"i"); 
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g,"o"); 
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g,"u"); 
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g,"y"); 
+    str = str.replace(/đ/g,"d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, ""); 
+    str = str.replace(/\u02C6|\u0306|\u031B/g, ""); 
+    return str.trim().toLowerCase();
+}
+
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+
 searchInput.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase().trim();
+    const rawTerm = e.target.value;
+    
+    // Toggle Clear Button
+    if (rawTerm.length > 0) {
+        clearSearchBtn.classList.remove('hidden');
+    } else {
+        clearSearchBtn.classList.add('hidden');
+    }
+
+    const term = removeVietnameseTones(rawTerm);
+    
     if (!term) {
         renderList(customers);
         return;
     }
 
-    // Powerful search: Match name or CCCD
+    // Split search term into words for "Smart Matching"
+    // e.g. "tung anh" will match "Nguyễn Anh Tùng"
+    const searchWords = term.split(/\s+/);
+
     const filtered = customers.filter(c => {
-        // Safe check for properties
-        const nameMatch = c.name ? c.name.toLowerCase().includes(term) : false;
-        const cccdMatch = c.cccd ? c.cccd.toString().includes(term) : false;
-        return nameMatch || cccdMatch;
+        // Prepare data
+        const nameRaw = c.name || "";
+        const cccdRaw = c.cccd ? c.cccd.toString() : "";
+        
+        const nameNormalized = removeVietnameseTones(nameRaw);
+        
+        // 1. CCCD Match (Exact or Contains) - High priority
+        if (cccdRaw.includes(term) || cccdRaw.includes(rawTerm)) return true;
+
+        // 2. Name Match (Advanced)
+        // Check if ALL words in the search term appear in the user's name
+        const allWordsFound = searchWords.every(word => nameNormalized.includes(word));
+        
+        return allWordsFound;
     });
 
     renderList(filtered);
+});
+
+// Clear Search Handler
+clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    searchInput.focus();
+    clearSearchBtn.classList.add('hidden');
+    renderList(customers); // Reset list
 });
 
 // -----------------------------------------------------
@@ -574,14 +651,6 @@ addForm.addEventListener('submit', async (e) => {
         btnSpinner.classList.add('hidden');
     }
 });
-
-// -----------------------------------------------------
-// ACTION SHEET LOGIC (Delete/Edit)
-// -----------------------------------------------------
-function openActionSheet(id) {
-    selectedCustomerId = id;
-    actionSheetOverlay.classList.add('active');
-}
 
 function closeActionSheet() {
     actionSheetOverlay.classList.remove('active');
