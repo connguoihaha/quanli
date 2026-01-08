@@ -625,55 +625,48 @@ addForm.addEventListener('submit', async (e) => {
     }
 
     // Loading state
-    submitBtn.disabled = true;
-    btnText.classList.add('hidden');
-    btnSpinner.classList.remove('hidden');
-
-    try {
-        const isOffline = !navigator.onLine;
-        let promise;
-
-        if (editingId) {
-            // UPDATE EXISTING
-            const customerRef = doc(db, "customers", editingId);
-            promise = updateDoc(customerRef, {
-                name: name,
-                cccd: cccd,
-                updatedAt: serverTimestamp()
-            });
-        } else {
-            // ADD NEW
-            promise = addDoc(collection(db, "customers"), {
-                name: name,
-                cccd: cccd,
-                createdAt: serverTimestamp()
-            });
-        }
-
-        if (isOffline) {
-            // OFFLINE: Don't await, close immediately
-            showToast("Đã lưu (Offline). Sẽ tự đồng bộ khi có mạng.");
-            closeModal();
-            // Handle promise in background to catch potential local errors
-            promise.catch(e => console.error("Offline write error (unlikely):", e));
-        } else {
-            // ONLINE: Await confirmation
-            await promise;
-            closeModal();
-            showToast(editingId ? "Đã cập nhật thành công" : "Đã thêm thành công");
-        }
-        
-    } catch (error) {
-        console.error("Error saving document: ", error);
-        alert("Có lỗi xảy ra: " + error.message);
-    } finally {
-        // Reset UI if we awaited (if offline, modal is already closed so this is fine)
-        if (navigator.onLine) {
-            submitBtn.disabled = false;
-            btnText.classList.remove('hidden');
-            btnSpinner.classList.add('hidden');
-        }
+    // LOADING & OPTIMISTIC UPDATE
+    // We do NOT await the network request here. We rely on Firestore's latency compensation.
+    // This prevents the UI from "spinning" indefinitely on slow/offline networks.
+    
+    // 1. Close Modal Immediately
+    closeModal();
+    
+    // 2. Show Toast (Optimistic)
+    const isOffline = !navigator.onLine;
+    if (isOffline) {
+        showToast("Đã lưu (Offline). Sẽ tự đồng bộ.");
+    } else {
+        showToast("Đang xử lý...");
     }
+
+    // 3. Perform Firestore Operation in Background
+    let promise;
+    if (editingId) {
+        const customerRef = doc(db, "customers", editingId);
+        promise = updateDoc(customerRef, {
+            name: name,
+            cccd: cccd,
+            updatedAt: serverTimestamp()
+        });
+    } else {
+        promise = addDoc(collection(db, "customers"), {
+            name: name,
+            cccd: cccd,
+            createdAt: serverTimestamp()
+        });
+    }
+
+    // 4. Handle Completion/Errors in Background
+    promise.then(() => {
+        // Success (Server Acknowledged)
+        // Note: UI is already updated via onSnapshot
+        console.log("Write acknowledged by server");
+    }).catch((error) => {
+        console.error("Error saving document: ", error);
+        alert("Lỗi khi lưu dữ liệu: " + error.message);
+        // Re-open modal or handle error state if needed
+    });
 });
 
 function closeActionSheet() {
@@ -761,22 +754,28 @@ actionDeleteBtn.addEventListener('click', () => {
     // Show Custom Confirm Dialog
     setTimeout(() => {
         showConfirmDialog("Bạn có chắc chắn muốn xóa khách hàng này không? Hành động này không thể hoàn tác.", async () => {
-            try {
-                const isOffline = !navigator.onLine;
-                const promise = deleteDoc(doc(db, "customers", idToDelete));
+            // OPTIMISTIC DELETE
+            // 1. Close immediately logic implies simply triggering the delete
+            const isOffline = !navigator.onLine;
+            
+            if (isOffline) {
+                 showToast("Đã xóa (Offline). Sẽ đồng bộ sau.");
+            } else {
+                 showToast("Đang xóa...");
+            }
 
-                if (isOffline) {
-                     showToast("Đã xóa (Offline). Sẽ đồng bộ sau.");
-                     // Don't await
-                     promise.catch(e => console.error(e));
-                } else {
-                    await promise;
-                    showToast("Đã xóa thành công");
-                }
-            } catch (error) {
+            // 2. Perform Delete
+            // We don't await this inside the UI blocking thread
+            deleteDoc(doc(db, "customers", idToDelete)).catch(error => {
                 console.error("Error removing document: ", error);
                 alert("Không thể xóa: " + error.message);
-            }
+            });
+            
+            // Note: closeConfirmDialog() is called automatically by the confirm modal logic 
+            // but we want to ensure the spinner doesn't get stuck if we were using it.
+            // Since we are inside the callback of showConfirmDialog, the parent logic handles the button state?
+            // Wait, looking at showConfirmDialog implementation in app.js lines ~519:
+            // It awaits the callback! We need to make the callback synchronous or instant.
         });
     }, 300); // Wait for action sheet to close
 });
