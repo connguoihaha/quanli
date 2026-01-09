@@ -57,6 +57,7 @@ try {
 
 } catch (e) {
     console.error("Lỗi khởi tạo Firebase. Hãy kiểm tra config.", e);
+    db = null; // Ensure db is null so we can check later
 }
 
 // Network Status Listeners
@@ -812,7 +813,16 @@ actionDeleteBtn.addEventListener('click', () => {
 
 // Start app
 if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-    initDataListener();
+    if (db) {
+        initDataListener();
+    } else {
+        customerListEl.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <p>Lỗi khởi tạo cơ sở dữ liệu (Offline/Config Error)</p>
+            </div>
+        `;
+    }
 } else {
     // Show empty state telling user to config
     customerListEl.innerHTML = `
