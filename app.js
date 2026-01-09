@@ -49,7 +49,7 @@ try {
                 // Multiple tabs open
                 console.log('Persistence failed: Multiple tabs open');
                 // Use setTimeout to ensure UI is ready or just use alert for critical warning
-                setTimeout(() => alert("Lỗi: Bạn đang mở ứng dụng ở nhiều tab.\nVui lòng đóng các tab khác để sử dụng tính năng Offline."), 500);
+                // setTimeout(() => alert("Lỗi: Bạn đang mở ứng dụng ở nhiều tab.\nVui lòng đóng các tab khác để sử dụng tính năng Offline."), 500);
             } else if (err.code == 'unimplemented') {
                 // Browser doesn't support
                 console.log('Persistence not supported');
