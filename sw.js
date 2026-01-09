@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qlkh-v5';
+const CACHE_NAME = 'qlkh-v5.0.1';
 const STATIC_RESOURCES = [
   './',
   './index.html',
@@ -98,4 +98,5 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+
 });
