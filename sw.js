@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qlkh-v5.0.1';
+const CACHE_NAME = 'qlkh-v5.2';
 const STATIC_RESOURCES = [
   './',
   './index.html',
@@ -100,3 +100,4 @@ self.addEventListener('message', (event) => {
   }
 
 });
+
