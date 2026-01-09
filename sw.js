@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qlkh-v4.3';
+const CACHE_NAME = 'qlkh-v5';
 const STATIC_RESOURCES = [
   './',
   './index.html',

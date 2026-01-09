@@ -48,10 +48,15 @@ try {
             if (err.code == 'failed-precondition') {
                 // Multiple tabs open
                 console.log('Persistence failed: Multiple tabs open');
+                // Use setTimeout to ensure UI is ready or just use alert for critical warning
+                setTimeout(() => alert("Lỗi: Bạn đang mở ứng dụng ở nhiều tab.\nVui lòng đóng các tab khác để sử dụng tính năng Offline."), 500);
             } else if (err.code == 'unimplemented') {
                 // Browser doesn't support
                 console.log('Persistence not supported');
-                showToast("Thiết bị này không hỗ trợ lưu offline");
+                // showToast might not be ready yet, use safe fallback or timeout
+                 setTimeout(() => {
+                    if(typeof showToast === 'function') showToast("Thiết bị không hỗ trợ lưu Offline");
+                 }, 1000);
             }
         });
 
@@ -104,6 +109,18 @@ if (!navigator.onLine) {
 // DOM Elements
 const searchInput = document.getElementById('searchInput');
 const customerListEl = document.getElementById('customerList');
+
+// Header Scroll Logic
+const appHeader = document.querySelector('.app-header');
+if (customerListEl && appHeader) {
+    customerListEl.addEventListener('scroll', () => {
+        if (customerListEl.scrollTop > 10) {
+            appHeader.classList.add('collapsed');
+        } else {
+            appHeader.classList.remove('collapsed');
+        }
+    });
+}
 const addBtn = document.getElementById('addBtn');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalTitle = document.querySelector('.modal-header h2'); 
@@ -173,6 +190,8 @@ let newWorker;
 
 function showUpdatePopup() {
     if(updatePopup) updatePopup.classList.add('active');
+    // Hide Install Banner if Update is active
+    hideInstallBanner();
 }
 
 if (updateBtn) {
@@ -280,6 +299,64 @@ function showToast(message) {
 // Track currently open swipe card to close others
 let activeSwipeCard = null;
 
+// Highlight Helper
+function highlightText(text, term) {
+    if (!term || !text) return escapeHtml(text);
+    
+    const normText = removeVietnameseTones(text);
+    const normTerm = removeVietnameseTones(term);
+    const words = normTerm.split(/\s+/).filter(w => w.length > 0);
+    
+    if (words.length === 0) return escapeHtml(text);
+
+    // Find matches
+    let matches = [];
+    words.forEach(word => {
+        let startPos = 0;
+        let index;
+        while ((index = normText.indexOf(word, startPos)) !== -1) {
+            matches.push({ start: index, end: index + word.length });
+            startPos = index + 1;
+        }
+    });
+    
+    if (matches.length === 0) return escapeHtml(text);
+
+    // Sort and Merge
+    matches.sort((a, b) => a.start - b.start);
+    let merged = [];
+    if (matches.length > 0) {
+        let current = matches[0];
+        for (let i = 1; i < matches.length; i++) {
+             if (matches[i].start < current.end) {
+                 current.end = Math.max(current.end, matches[i].end);
+             } else {
+                 merged.push(current);
+                 current = matches[i];
+             }
+        }
+        merged.push(current);
+    }
+
+    // Compose HTML
+    let html = '';
+    let lastIdx = 0;
+    merged.forEach(m => {
+        if (m.start > lastIdx) {
+            html += escapeHtml(text.substring(lastIdx, m.start));
+        }
+        // Clamp indexes just in case
+        const start = Math.max(0, m.start);
+        const end = Math.min(text.length, m.end);
+        
+        html += `<span class="search-highlight">${escapeHtml(text.substring(start, end))}</span>`;
+        lastIdx = end;
+    });
+    html += escapeHtml(text.substring(lastIdx));
+    
+    return html;
+}
+
 // Close swipe when clicking anywhere outside of specific action buttons
 document.addEventListener('click', (e) => {
     if (activeSwipeCard && !e.target.closest('.swipe-btn')) {
@@ -288,17 +365,30 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function renderList(listData) {
+function renderList(listData, searchTerm = '') {
     customerListEl.innerHTML = '';
     activeSwipeCard = null; // Reset
 
     if (listData.length === 0) {
-        customerListEl.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-regular fa-folder-open"></i>
-                <p>Chưa có dữ liệu</p>
-            </div>
-        `;
+        let emptyContent = '';
+        if (searchTerm) {
+            // Search Empty State
+            emptyContent = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <p>Không tìm thấy khách hàng phù hợp</p>
+                </div>
+            `;
+        } else {
+            // Default Empty State
+            emptyContent = `
+                <div class="empty-state">
+                    <i class="fa-regular fa-folder-open"></i>
+                    <p>Chưa có dữ liệu</p>
+                </div>
+            `;
+        }
+        customerListEl.innerHTML = emptyContent;
         return;
     }
 
@@ -323,9 +413,9 @@ function renderList(listData) {
                         <i class="fa-solid fa-user"></i>
                     </div>
                     <div class="card-info">
-                        <span class="card-name">${escapeHtml(customer.name)}</span>
+                        <span class="card-name">${highlightText(customer.name, searchTerm)}</span>
                         <span class="card-cccd" id="cccd-copy-${customer.id}">
-                            <i class="fa-regular fa-copy"></i> ${escapeHtml(customer.cccd)}
+                            <i class="fa-regular fa-copy"></i> ${highlightText(customer.cccd, searchTerm)}
                         </span>
                     </div>
                     ${customer.isPending ? `<div class="pending-icon" title="Đang chờ đồng bộ"><i class="fa-solid fa-rotate"></i></div>` : ''}
@@ -388,9 +478,12 @@ function renderList(listData) {
             // Calculate new position based on start position
             let newPos = startPos + diff;
 
-            // Constrain movement: max right 0 (closed), max left -160 (elastic limit)
+            const isOffline = document.body.classList.contains('offline-mode');
+            const limit = isOffline ? -70 : -160; 
+
+            // Constrain movement: max right 0 (closed), max left based on mode
             if (newPos > 0) newPos = 0;
-            if (newPos < -160) newPos = -160;
+            if (newPos < limit) newPos = limit;
 
             cardFront.style.transform = `translateX(${newPos}px)`;
         };
@@ -420,7 +513,9 @@ function renderList(listData) {
             }
 
             if (shouldBeOpen) {
-                cardFront.style.transform = `translateX(-140px)`;
+                const isOffline = document.body.classList.contains('offline-mode');
+                const targetPos = isOffline ? -70 : -140;
+                cardFront.style.transform = `translateX(${targetPos}px)`;
                 activeSwipeCard = cardFront;
             } else {
                 cardFront.style.transform = `translateX(0)`;
@@ -535,7 +630,7 @@ searchInput.addEventListener('input', (e) => {
         return allWordsFound;
     });
 
-    renderList(filtered);
+    renderList(filtered, rawTerm);
 });
 
 // Clear Search Handler
